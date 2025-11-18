@@ -64,43 +64,80 @@ function setup() {
 }
 
 function applyNoiseDistortion(pg, img, w, h) {
-  let temp = createGraphics(w, h);
-  temp.image(img, 0, 0, w, h);
-  temp.loadPixels();
+  pg.image(img, 0, 0, w, h);
+  pg.filter(BLUR, 25);
   
-  pg.background(255);
+  // Apply digital glitch effect
   pg.loadPixels();
   
-  const noiseScale = 0.003;
-  const distortionStrength = 600;
-  
   randomSeed(42);
-  noiseSeed(42);
+  const glitchIntensity = 8;
+  const numGlitches = 12;
   
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const noiseX = noise(x * noiseScale, y * noiseScale, 0) * 2 - 1;
-      const noiseY = noise(x * noiseScale, y * noiseScale, 100) * 2 - 1;
-      const turbulenceX = noise(x * noiseScale * 4, y * noiseScale * 4, 50) * 2 - 1;
-      const turbulenceY = noise(x * noiseScale * 4, y * noiseScale * 4, 150) * 2 - 1;
-      
-      const offsetX = (noiseX + turbulenceX * 0.7) * distortionStrength;
-      const offsetY = (noiseY + turbulenceY * 0.7) * distortionStrength;
-      
-      const srcX = constrain(floor(x + offsetX), 0, w - 1);
-      const srcY = constrain(floor(y + offsetY), 0, h - 1);
-      
-      const srcIdx = (srcY * w + srcX) * 4;
-      const destIdx = (y * w + x) * 4;
-      
-      pg.pixels[destIdx] = temp.pixels[srcIdx];
-      pg.pixels[destIdx + 1] = temp.pixels[srcIdx + 1];
-      pg.pixels[destIdx + 2] = temp.pixels[srcIdx + 2];
-      pg.pixels[destIdx + 3] = temp.pixels[srcIdx + 3];
+  for (let i = 0; i < numGlitches; i++) {
+    const glitchY = floor(random(h));
+    const glitchHeight = floor(random(5, 30));
+    const glitchOffset = floor(random(-80, 80));
+    
+    for (let y = glitchY; y < min(glitchY + glitchHeight, h); y++) {
+      for (let x = 0; x < w; x++) {
+        let srcX = x - glitchOffset;
+        
+        if (srcX >= 0 && srcX < w) {
+          const srcIdx = (y * w + srcX) * 4;
+          const destIdx = (y * w + x) * 4;
+          
+          pg.pixels[destIdx] = pg.pixels[srcIdx];
+          pg.pixels[destIdx + 1] = pg.pixels[srcIdx + 1];
+          pg.pixels[destIdx + 2] = pg.pixels[srcIdx + 2];
+          pg.pixels[destIdx + 3] = pg.pixels[srcIdx + 3];
+        }
+      }
     }
   }
   
   pg.updatePixels();
-  temp.remove();
+  
+  // Apply pattern filter - create repeating geometric pattern
+  applyPatternFilter(pg, w, h);
+}
+
+function applyPatternFilter(pg, w, h) {
+  pg.loadPixels();
+  
+  const patternSize = 30;
+  const lineThickness = 1.5;
+  const whiteThreshold = 240;
+  
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      
+      // Check if pixel is not white
+      const r = pg.pixels[idx];
+      const g = pg.pixels[idx + 1];
+      const b = pg.pixels[idx + 2];
+      const isNotWhite = (r < whiteThreshold || g < whiteThreshold || b < whiteThreshold);
+      
+      // Create more intriguing pattern with multiple layers
+      const isDiagonal = (x + y) % patternSize < lineThickness;
+      const isReverseDiagonal = (x - y + h) % patternSize < lineThickness;
+      const isCircle = (x % patternSize - patternSize/2) * (x % patternSize - patternSize/2) + 
+                       (y % patternSize - patternSize/2) * (y % patternSize - patternSize/2) < 16;
+      const isWave = Math.abs(Math.sin(x * 0.1) * 10 - (y % patternSize)) < lineThickness;
+      const isHexagon = (x % (patternSize * 2) < lineThickness) || 
+                        ((x + y) % (patternSize * 2) < lineThickness * 2);
+      
+      if ((isDiagonal || isReverseDiagonal || isCircle || isWave || isHexagon) && isNotWhite) {
+        // Make pattern lines white with slight variation
+        const brightness = 255 - Math.random() * 20;
+        pg.pixels[idx] = brightness;
+        pg.pixels[idx + 1] = brightness;
+        pg.pixels[idx + 2] = brightness;
+      }
+    }
+  }
+  
+  pg.updatePixels();
 }
 
