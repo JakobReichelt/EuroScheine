@@ -612,7 +612,9 @@ async function captureCanvasSide(billIndex, side, format) {
     useCORS: true,
     allowTaint: true,
     scale: 1,
-    backgroundColor: null
+    backgroundColor: null,
+    imageTimeout: 2000,
+    logging: false
   });
 
   // Convert to blob
